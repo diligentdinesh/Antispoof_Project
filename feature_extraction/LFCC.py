@@ -56,7 +56,7 @@ def linear_spec(y=None,
 
 
 def lfcc(y=None,
-         sr=22050,
+         sr=16000,
          S=None,
          n_lfcc=20,
          dct_type=2,
