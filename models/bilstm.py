@@ -8,13 +8,15 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import FalsePositives, FalseNegatives
 from tensorflow.keras.layers import Bidirectional, Dropout
 from enum import Enum
-
+from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib as mpl
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import pandas as pd
+
+import mlflow
 
 class Mode(Enum):
    eval="eval"
@@ -27,6 +29,7 @@ def plot_cm(labels, predictions, p=0.5):
     plt.title('Confusion matrix @{:.2f}'.format(p))
     plt.ylabel('Actual label')
     plt.xlabel('Predicted label')
+    plt.savefig('confusion_matrix.png')
 
     print('Legitimate Transactions Detected (True Negatives): ', cm[0][0])
     print('Legitimate Transactions Incorrectly Detected (False Positives): ', cm[0][1])
@@ -35,7 +38,7 @@ def plot_cm(labels, predictions, p=0.5):
     print('Total Fraudulent Transactions: ', np.sum(cm[1]))
 
 class BiLSTM_Model:
-    def __init__(self, weight_saved_path = "./checkpoints/aldp_lfcc/checkpoint", display=False, learning_rate=0.001, beta_1 = 0.999, mode: Mode="train") -> None:
+    def __init__(self, weight_saved_path = "./checkpoints/eltp_lfcc/checkpoint", display=False, learning_rate=0.001, beta_1 = 0.999, mode: Mode="train", fine_tune=False) -> None:
         self.weight_saved_path = weight_saved_path
         self.display = display
         self.METRICS = [
@@ -58,7 +61,8 @@ class BiLSTM_Model:
         )
         self.adam_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate, beta_1=beta_1 )
         self.build_model()
-        if mode!="train":
+        if mode!="train" or fine_tune:
+            print("[INFO] Loading Model")
             self.load_model()
 
     def build_model(self):
@@ -131,14 +135,15 @@ class BiLSTM_Model:
             else:
                 plt.ylim([0,1])
             plt.legend()
+        plt.savefig('history_curve.png')
 
 
-    def train_model(self, X_train, y_train, X_dev, y_dev, epcohs=100, batch_size=30):
+    def train_model(self, X_train, y_train, X_dev, y_dev, epochs=100, batch_size=30):
         self.calculate_class_weight(y_train=y_train)
-        self.history = self.model.fit(X_train, y_train, validation_data=(X_dev, y_dev), epochs=epcohs, batch_size=batch_size, callbacks=[self.early_stopping],class_weight=self.class_weight)
+        mlflow.tensorflow.autolog()
+        self.history = self.model.fit(X_train, y_train, validation_data=(X_dev, y_dev), epochs=epochs, batch_size=batch_size, callbacks=[self.early_stopping],class_weight=self.class_weight)
         self.save_model()
-        if self.display:
-            self.display_history()
+        self.display_history()
 
     def equal_error_rate(self, df):
         def get_far_frr(df, threshold):
@@ -151,29 +156,45 @@ class BiLSTM_Model:
             return far, frr
         thresholds = list(df['y_pred'].sort_values())
         far_, frr_ = [], []
-        for thresh in thresholds:
+        for thresh in tqdm(thresholds):
             far, frr = get_far_frr(df, threshold=thresh)
             far_.append(far)
             frr_.append(frr)
         df_f = pd.DataFrame({'far':far_, 'frr': frr_})
-        if self.display:
-            plt.figure()
-            plt.plot(df_f['far'])
-            plt.plot(df_f['frr'])
-            plt.legend(['False Acceptance Rate', 'False Rejection Rate'])
-            plt.xlabel('Thresholds')
-            plt.ylabel('Error Rate')
-            plt.title('')
 
+        plt.figure()
+        plt.plot(df_f['far'])
+        plt.plot(df_f['frr'])
+        plt.legend(['False Acceptance Rate', 'False Rejection Rate'])
+        plt.xlabel('Thresholds')
+        plt.ylabel('Error Rate')
+        plt.title('EER Curve')
+        plt.savefig('EER_Curve.png')
 
+        plt.figure()
+        df_test = 1 - df_f['frr']
+        df_test.index = df_f['far']
+        df_test
+        plt.figure()
+        plt.plot(df_test)
+        # plt.legend(['False Acceptance Rate', 'False Rejection Rate'])
+        plt.xlabel('Thresholds')
+        plt.ylabel('Error Rate')
+        plt.title('ROC Curve')
+        plt.savefig("ROC_curve.png")
 
 
     def evaluate_model(self, X_eval, y_eval, batch_size=30):
+        print("[INFO] Prediction before evaluation")
         eval_predictions = self.model.predict(X_eval, batch_size=batch_size)
 
-        model_results = self.model.evaluate(X_eval, y_eval, batch_size=batch_size, verbose=0)
+        print("[INFO] Evaluation of Model")
+        model_results = self.model.evaluate(X_eval, y_eval, batch_size=batch_size, verbose=2)
         for name, value in zip(self.model.metrics_names, model_results):
             print(name, ': ', value)
         plot_cm(y_eval, eval_predictions)
+        
+        print("[INFO] Equal Error Rate Calculation")
         df = pd.DataFrame({'y_eval':y_eval, 'y_pred': eval_predictions[:,0]})
+        self.equal_error_rate(df)
 
