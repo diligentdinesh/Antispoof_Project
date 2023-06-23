@@ -9,8 +9,8 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, preci
 
 from models.bilstm import BiLSTM_Model
 
-eltp_df_eval = pd.read_csv('eltp_features/eltp_eval.csv')
-lfcc_df_eval = pd.read_csv('lfcc_features/lfcc_eval.csv')
+eltp_df_eval = pd.read_csv('extracted_features/eltp_features/eltp_eval.csv')
+lfcc_df_eval = pd.read_csv('extracted_features/lfcc_features/lfcc_eval.csv')
 
 lfcc_df_eval.columns = ['Unnamed: 0', 'SPEAKER_ID', 'AUDIO_FILE_NAME', 'SYSTEM_ID', '-', 'KEY',
        'LFCC_FEATURE_1', 'LFCC_FEATURE_2', 'LFCC_FEATURE_3', 'LFCC_FEATURE_4', 'LFCC_FEATURE_5',
@@ -30,12 +30,8 @@ X_eval, y_eval = eltp_df_eval[['FEATURE_1', 'FEATURE_2', 'FEATURE_3', 'FEATURE_4
        'LFCC_FEATURE_11', 'LFCC_FEATURE_12', 'LFCC_FEATURE_13', 'LFCC_FEATURE_14', 'LFCC_FEATURE_15',
        'LFCC_FEATURE_16', 'LFCC_FEATURE_17', 'LFCC_FEATURE_18', 'LFCC_FEATURE_19', 'LFCC_FEATURE_20']], eltp_df_eval['target']
 
-model = BiLSTM_Model(mode="eval")
+model = BiLSTM_Model(weight_saved_path="./checkpoints/eltp_lfcc_new/checkpoint",mode="eval")
 # code from classification of code imbalance
-eval_predictions = model.predict(X_eval, batch_size=30)
 
-model_results = model.evaluate(X_eval, y_eval, batch_size=30, verbose=0)
-for name, value in zip(model.metrics_names, model_results):
-    print(name, ': ', value)
-print()
+model_results = model.evaluate_model(X_eval, y_eval, batch_size=30)
 
