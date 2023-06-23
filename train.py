@@ -10,10 +10,10 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, preci
 from models.bilstm import BiLSTM_Model
 
 
-eltp_df_train = pd.read_csv('eltp_features/eltp_train.csv')
-eltp_df_dev = pd.read_csv('eltp_features/eltp_dev.csv')
-lfcc_df_train = pd.read_csv('lfcc_features/lfcc_train.csv')
-lfcc_df_dev = pd.read_csv('lfcc_features/lfcc_dev.csv')
+eltp_df_train = pd.read_csv('extracted_features/eltp_features/eltp_train.csv')
+eltp_df_dev = pd.read_csv('extracted_features/eltp_features/eltp_dev.csv')
+lfcc_df_train = pd.read_csv('extracted_features/lfcc_features/lfcc_train.csv')
+lfcc_df_dev = pd.read_csv('extracted_features/lfcc_features/lfcc_dev.csv')
 
 lfcc_df_train.columns = ['Unnamed: 0', 'SPEAKER_ID', 'AUDIO_FILE_NAME', 'SYSTEM_ID', '-', 'KEY',
        'LFCC_FEATURE_1', 'LFCC_FEATURE_2', 'LFCC_FEATURE_3', 'LFCC_FEATURE_4', 'LFCC_FEATURE_5',
@@ -51,4 +51,4 @@ X_dev, y_dev = eltp_lfcc_dev[['FEATURE_1', 'FEATURE_2', 'FEATURE_3', 'FEATURE_4'
                              ]], eltp_lfcc_dev['target']
 
 model = BiLSTM_Model()
-model.train_model(X_train, y_train, X_dev, y_dev)
+model.train_model(X_train, y_train, X_dev, y_dev, epochs=5)
