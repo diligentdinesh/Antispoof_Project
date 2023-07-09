@@ -30,8 +30,8 @@ X_eval, y_eval = eltp_df_eval[['FEATURE_1', 'FEATURE_2', 'FEATURE_3', 'FEATURE_4
        'LFCC_FEATURE_11', 'LFCC_FEATURE_12', 'LFCC_FEATURE_13', 'LFCC_FEATURE_14', 'LFCC_FEATURE_15',
        'LFCC_FEATURE_16', 'LFCC_FEATURE_17', 'LFCC_FEATURE_18', 'LFCC_FEATURE_19', 'LFCC_FEATURE_20']], eltp_df_eval['target']
 
-model = BiLSTM_Model(weight_saved_path="./checkpoints/eltp_lfcc_new/checkpoint",mode="eval")
+model = BiLSTM_Model(weight_saved_path="./checkpoints/eltp_lfcc_500/checkpoint",mode="eval")
 # code from classification of code imbalance
 
-model_results = model.evaluate_model(X_eval, y_eval, batch_size=30)
+model_results = model.evaluate_model(X_eval, y_eval, batch_size=64)
 
