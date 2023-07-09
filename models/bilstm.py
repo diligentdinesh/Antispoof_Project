@@ -16,7 +16,6 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import pandas as pd
 
-import mlflow
 
 class Mode(Enum):
    eval="eval"
@@ -53,10 +52,10 @@ class BiLSTM_Model:
             tf.keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
         ]
         self. early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor='val_prc', 
+            monitor='val_loss', 
             verbose=1,
-            patience=10,
-            mode='max',
+            patience=500,
+            mode='min',
             restore_best_weights=True
         )
         self.adam_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate, beta_1=beta_1 )
@@ -140,10 +139,19 @@ class BiLSTM_Model:
 
     def train_model(self, X_train, y_train, X_dev, y_dev, epochs=100, batch_size=30):
         self.calculate_class_weight(y_train=y_train)
-        mlflow.tensorflow.autolog()
         self.history = self.model.fit(X_train, y_train, validation_data=(X_dev, y_dev), epochs=epochs, batch_size=batch_size, callbacks=[self.early_stopping],class_weight=self.class_weight)
         self.save_model()
         self.display_history()
+        hist_df = pd.DataFrame(self.history.history) 
+        # save to json:  
+        hist_json_file = 'history.json' 
+        with open(hist_json_file, mode='w') as f:
+            hist_df.to_json(f)
+
+        # or save to csv: 
+        hist_csv_file = 'history.csv'
+        with open(hist_csv_file, mode='w') as f:
+            hist_df.to_csv(f)
 
     def equal_error_rate(self, df):
         def get_far_frr(df, threshold):
@@ -161,6 +169,7 @@ class BiLSTM_Model:
             far_.append(far)
             frr_.append(frr)
         df_f = pd.DataFrame({'far':far_, 'frr': frr_})
+        df_f.index = thresholds
 
         plt.figure()
         plt.plot(df_f['far'])
