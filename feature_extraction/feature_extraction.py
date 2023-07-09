@@ -21,16 +21,16 @@ def read_track_file(directory, filename):
     y, sr = librosa.load(file_name, sr=16000)
     return y
 
-track_list = get_track_list(eval_dir)
+track_list = get_track_list(train_dir)
 
 
 features_of_all_track = []
 # i = 1
 for track in tqdm(track_list):
-    y = read_track_file(eval_dir, track)
-    eltp = LFCC_pipeline.lfcc(y)
+    y = read_track_file(train_dir, track)
+    eltp = ELTP.ELTP(y)
     features = [('FEATURE_'+str(i+1), feature) for i,feature in enumerate(eltp)]
-    features =dict(features)
+    features = dict(features)
     features['AUDIO_FILE_NAME'] = track.split('.')[0]
     features_of_all_track.append(features)
     # i = i + 1
@@ -40,7 +40,7 @@ for track in tqdm(track_list):
 features_df = pd.DataFrame(features_of_all_track)
 
 
-train_features =pd.read_csv(eval_features_from_datasets, header=None, delimiter=r"\s+")
+train_features =pd.read_csv(train_features_from_datasets, header=None, delimiter=r"\s+")
 train_features.columns = ['SPEAKER_ID', 'AUDIO_FILE_NAME', 'SYSTEM_ID', '-', 'KEY']
 result = train_features.merge(features_df, on='AUDIO_FILE_NAME', how='inner')
-result.to_csv('../extracted_features/lfcc_features_new/lfcc_eval.csv')
+result.to_csv('../extracted_features/eltp_80_features/eltp_train.csv')

@@ -31,7 +31,7 @@ def calculate_halves(ternary_code):
     return pos_halves, neg_halves
     
 
-def adaptive_threshold(frame, alpha=0.6):
+def adaptive_threshold(frame, alpha=0.8):
     frame = np.array(frame)
     return frame.std() * alpha
 
