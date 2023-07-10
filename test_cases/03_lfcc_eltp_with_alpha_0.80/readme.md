@@ -10,11 +10,11 @@
 
 ## Result
 - Locally Converge but not able to converge globally
-- accuracy :  0.7180398106575012
-- precision :  0.24508430063724518
-- recall :  0.8320870399475098
-- auc :  0.8238363265991211
-- prc :  0.2991851568222046
+- accuracy :  0.6700731515884399
+- precision :  0.23140385746955872
+- recall :  0.9457511901855469
+- auc :  0.87706458568573
+- prc :  0.3788052201271057
 
 ### History Curve
 ![](history_curve.png)
