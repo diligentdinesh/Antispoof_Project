@@ -8,7 +8,7 @@
 
 
 ## Checkpoints 
-```./checkpoints/eltp_lfcc_500_alpha_80/checkpoint```
+```./checkpoints/eltp_lfcc_500_alpha_80_single_bilstm/checkpoint```
 
 ## Result
 - Locally Converge but not able to converge globally
