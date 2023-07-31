@@ -27,8 +27,16 @@
 ![](confusion_matrix.png)
 
 
-### EER Curve 
+### EER Curve for Eval Data
 ![](EER_Curve.png)
+
+
+### EER Curve for Dev Data
+<!-- ![](EER_Curve_for_dev.png) -->
+
+
+### EER Curve for Train Data
+![](EER_Curve_for_train.png)
 
 
 ### ROC Curve
