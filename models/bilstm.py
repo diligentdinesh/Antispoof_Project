@@ -51,12 +51,13 @@ class BiLSTM_Model:
             tf.keras.metrics.AUC(name='auc'),
             tf.keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
         ]
-        self. early_stopping = tf.keras.callbacks.EarlyStopping(
+        self.early_stopping = tf.keras.callbacks.EarlyStopping(
             monitor='val_loss', 
             verbose=1,
-            patience=500,
+            patience=50,
             mode='min',
-            restore_best_weights=True
+            restore_best_weights=True,
+            start_from_epoch=200
         )
         self.adam_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate, beta_1=beta_1 )
         self.build_model()
@@ -69,34 +70,38 @@ class BiLSTM_Model:
             Bidirectional(LSTM(units=1024, name="LSTM_1", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), input_shape=(40,1), merge_mode='concat'),
             BatchNormalization(),
             Dropout(0.5),
-            Bidirectional(LSTM(units=1024, name="LSTM_2", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            Bidirectional(LSTM(units=1024, name="LSTM_2", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             BatchNormalization(),
             Dropout(0.5),
-            Bidirectional(LSTM(units=1024, name="LSTM_3", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Bidirectional(LSTM(units=512, name="LSTM_4", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Bidirectional(LSTM(units=512, name="LSTM_5", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Bidirectional(LSTM(units=256, name="LSTM_6", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Bidirectional(LSTM(units=256, name="LSTM_7", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Bidirectional(LSTM(units=128, name="LSTM_8", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Bidirectional(LSTM(units=128, name="LSTM_9", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Bidirectional(LSTM(units=64, name="LSTM_10", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            BatchNormalization(),
-            Dropout(0.5),
-            Dense(units=32, activation='relu', name='Fully_Connected'),
+            # Bidirectional(LSTM(units=1024, name="LSTM_3", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            # Bidirectional(LSTM(units=512, name="LSTM_4", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            # Bidirectional(LSTM(units=512, name="LSTM_5", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            # Bidirectional(LSTM(units=256, name="LSTM_6", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            # Bidirectional(LSTM(units=256, name="LSTM_7", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            # Bidirectional(LSTM(units=128, name="LSTM_8", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            # Bidirectional(LSTM(units=128, name="LSTM_9", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            # Bidirectional(LSTM(units=64, name="LSTM_10", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # BatchNormalization(),
+            # Dropout(0.5),
+            Dense(units=512, activation='relu', name='Fully_Connected_1'),
+            Dense(units=256, activation='relu', name='Fully_Connected_2'),
+            Dense(units=128, activation='relu', name='Fully_Connected_3'),
+            Dense(units=64, activation='relu', name='Fully_Connected_4'),
+            Dense(units=32, activation='relu', name='Fully_Connected_5'),
             Dense(units=1, activation='sigmoid', name='Classification')
         ])
         self.model.compile(optimizer=self.adam_optimizer, loss=BinaryCrossentropy(), metrics=self.METRICS)
@@ -164,13 +169,18 @@ class BiLSTM_Model:
             return far, frr
         thresholds = list(df['y_pred'].sort_values())
         far_, frr_ = [], []
+        diff_error = 10000
         for thresh in tqdm(thresholds):
             far, frr = get_far_frr(df, threshold=thresh)
             far_.append(far)
             frr_.append(frr)
+            if np.abs(far - frr) < diff_error:
+                diff_error = np.abs(far-frr)
+                eer = far
+                th = thresh
         df_f = pd.DataFrame({'far':far_, 'frr': frr_})
         df_f.index = thresholds
-
+        print("Equal Error Rate: ", eer, " at thresholds: ", th)
         plt.figure()
         plt.plot(df_f['far'])
         plt.plot(df_f['frr'])
