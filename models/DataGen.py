@@ -30,7 +30,7 @@ class CustomDataGen(tf.keras.utils.Sequence):
         neg_batch = self.negative_df[index*self.negative_batch_size: (index+1) * self.negative_batch_size]
         pos_batch = self.positive_df.iloc[np.random.randint(low=0, high=self.m, size=self.positive_batch_size)]
         batch = pd.concat([neg_batch, pos_batch])
-        return batch[self.X_col], batch[self.y_col]
+        return batch[self.X_col], batch[[self.y_col]]
 
     
     def __len__(self):
