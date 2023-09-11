@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.keras import backend as K
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import BatchNormalization
@@ -16,10 +17,35 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import pandas as pd
 
+from sklearn.metrics import roc_curve
+from scipy.optimize import brentq
+from scipy.interpolate import interp1d
 
 class Mode(Enum):
    eval="eval"
    train="train"
+
+# def eer_custom(y_true, y_pred):
+#   fpr, tpr, thresholds = roc_curve(y_true, y_pred)
+#   eer = brentq(lambda x : 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
+#   return eer
+
+# def Binary_CrossEntropy_Weighted(y_true, y_pred):
+#     w_0 = 9
+#     w_1 = 1 
+#     return - K.mean((w_0 * y_true * tf.math.log(y_pred) + w_1 * (1.0 - y_true) * tf.math.log(1.0 - y_pred)))
+
+def Binary_CrossEntropy_Weighted(y_true, y_pred): 
+    w_0 = 0.9
+    w_1 = 0.1 
+    # https://github.com/tensorflow/tensorflow/blob/v2.3.1/tensorflow/python/keras/backend.py#L4826
+    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+    y_true = tf.cast(y_true, tf.float32)
+
+    term_0 = y_true * K.log(y_pred + K.epsilon()) # Cancels out when target is 0
+    term_1 = (1.0 - y_true) * K.log(1.0 - y_pred + K.epsilon())  # Cancels out when target is 1 
+
+    return -K.mean(w_0 * term_0 + w_1 * term_1, axis=1)
 
 def plot_cm(labels, predictions, p=0.5):
     cm = confusion_matrix(labels, predictions > p)
@@ -67,31 +93,31 @@ class BiLSTM_Model:
 
     def build_model(self):
         self.model = Sequential([
-            Bidirectional(LSTM(units=1024, name="LSTM_1", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), input_shape=(40,1), merge_mode='concat'),
+            Bidirectional(LSTM(units=64, name="LSTM_1", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), input_shape=(40,1), merge_mode='concat'),
             BatchNormalization(),
             Dropout(0.5),
-            Bidirectional(LSTM(units=1024, name="LSTM_2", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            Bidirectional(LSTM(units=64, name="LSTM_2", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             BatchNormalization(),
             Dropout(0.5),
-            # Bidirectional(LSTM(units=1024, name="LSTM_3", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # Bidirectional(LSTM(units=64, name="LSTM_3", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             # BatchNormalization(),
             # Dropout(0.5),
-            # Bidirectional(LSTM(units=512, name="LSTM_4", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # Bidirectional(LSTM(units=64, name="LSTM_4", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             # BatchNormalization(),
             # Dropout(0.5),
-            # Bidirectional(LSTM(units=512, name="LSTM_5", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # Bidirectional(LSTM(units=64, name="LSTM_5", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             # BatchNormalization(),
             # Dropout(0.5),
-            # Bidirectional(LSTM(units=256, name="LSTM_6", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # Bidirectional(LSTM(units=64, name="LSTM_6", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             # BatchNormalization(),
             # Dropout(0.5),
-            # Bidirectional(LSTM(units=256, name="LSTM_7", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # Bidirectional(LSTM(units=64, name="LSTM_7", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             # BatchNormalization(),
             # Dropout(0.5),
-            # Bidirectional(LSTM(units=128, name="LSTM_8", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # Bidirectional(LSTM(units=64, name="LSTM_8", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             # BatchNormalization(),
             # Dropout(0.5),
-            # Bidirectional(LSTM(units=128, name="LSTM_9", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
+            # Bidirectional(LSTM(units=64, name="LSTM_9", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             # BatchNormalization(),
             # Dropout(0.5),
             # Bidirectional(LSTM(units=64, name="LSTM_10", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
@@ -104,13 +130,15 @@ class BiLSTM_Model:
             Dense(units=32, activation='relu', name='Fully_Connected_5'),
             Dense(units=1, activation='sigmoid', name='Classification')
         ])
-        self.model.compile(optimizer=self.adam_optimizer, loss=BinaryCrossentropy(), metrics=self.METRICS)
+        self.model.compile(optimizer=self.adam_optimizer, loss=Binary_CrossEntropy_Weighted, metrics=self.METRICS)
 
     def calculate_class_weight(self, y_train):
         neg, pos = np.bincount(y_train)
         total = neg + pos
-        weight_for_0 = (1 / neg) * (total / 2.0)
-        weight_for_1 = (1 / pos) * (total / 2.0)
+        # weight_for_0 = (1 / neg) * (total / 2.0)
+        # weight_for_1 = (1 / pos) * (total / 2.0)
+        weight_for_0 = neg / total
+        weight_for_1 = pos / total
 
         self.class_weight = {0: weight_for_0, 1: weight_for_1}
 
@@ -142,9 +170,14 @@ class BiLSTM_Model:
         plt.savefig('history_curve.png')
 
 
-    def train_model(self, X_train, y_train, X_dev, y_dev, epochs=100, batch_size=30):
-        self.calculate_class_weight(y_train=y_train)
-        self.history = self.model.fit(X_train, y_train, validation_data=(X_dev, y_dev), epochs=epochs, batch_size=batch_size, callbacks=[self.early_stopping],class_weight=self.class_weight)
+    def train_model(self, train, dev, epochs=100, batch_size=30, datagen=False):
+        if datagen:
+            self.history = self.model.fit(train,  steps_per_epoch=len(train), epochs=epochs, validation_data=dev, validation_steps=len(dev))
+        else:
+            X_train, y_train = train
+            X_dev, y_dev = dev
+            self.calculate_class_weight(y_train=y_train)
+            self.history = self.model.fit(X_train, y_train, validation_data=(X_dev, y_dev), epochs=epochs, batch_size=batch_size, callbacks=[self.early_stopping],class_weight=self.class_weight)
         self.save_model()
         self.display_history()
         hist_df = pd.DataFrame(self.history.history) 
@@ -202,6 +235,10 @@ class BiLSTM_Model:
         plt.title('ROC Curve')
         plt.savefig("ROC_curve.png")
 
+    def generate_score(self, X_eval, batch_size=64):
+        print("[INFO] Generating scores")
+        eval_predictions = self.model.predict(X_eval, batch_size=batch_size)
+        return eval_predictions
 
     def evaluate_model(self, X_eval, y_eval, batch_size=30):
         print("[INFO] Prediction before evaluation")
