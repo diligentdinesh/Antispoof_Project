@@ -21,6 +21,25 @@ from sklearn.metrics import roc_curve
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 
+import pennylane as qml
+n_qubits = 4 #Number of qubits should be the same as number of features, max number = 25
+layers = 1  #layers per block (multiple “layers” of StronglyEntanglingLayers per block )
+batch_size=32
+dev = qml.device("default.qubit.tf", wires=n_qubits) #Run the model in classical CPU
+blocks = 1 #Νumber of blocks (AngleEmbedding and StronglyEntanglingLayers is one block )
+@tf.function
+@qml.qnode(dev, interface="tf", diff_method="backprop")
+def qnode(inputs, weights):
+    for i in range(blocks):
+        qml.templates.AngleEmbedding(inputs, wires=range(n_qubits))
+        qml.templates.StronglyEntanglingLayers(weights[i], wires=range(n_qubits)) #STRONGLY ENTANGLING LAYERS
+    return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
+
+weights_shape = (blocks, layers, n_qubits, 3) # Uncomment for Strongly entangling layers
+tf.keras.backend.set_floatx("float32")
+weight_shapes = {"weights": weights_shape}
+inputs = tf.constant(np.random.random((batch_size, n_qubits)))
+
 class Mode(Enum):
    eval="eval"
    train="train"
@@ -128,6 +147,9 @@ class BiLSTM_Model:
             Dense(units=128, activation='relu', name='Fully_Connected_3'),
             Dense(units=64, activation='relu', name='Fully_Connected_4'),
             Dense(units=32, activation='relu', name='Fully_Connected_5'),
+            Dense(n_qubits, activation="linear", name="before_qbit"),
+    #qlayer= tf.keras.layers.Dense(n_qubits, activation="linear", dtype=tf.float32) #Classical
+            qml.qnn.KerasLayer(qnode, weight_shapes, n_qubits, dtype=tf.float32), 
             Dense(units=1, activation='sigmoid', name='Classification')
         ])
         self.model.compile(optimizer=self.adam_optimizer, loss=Binary_CrossEntropy_Weighted, metrics=self.METRICS)
