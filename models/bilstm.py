@@ -194,7 +194,7 @@ class BiLSTM_Model:
 
     def train_model(self, train, dev, epochs=100, batch_size=30, datagen=False):
         if datagen:
-            self.history = self.model.fit(train,  steps_per_epoch=len(train), epochs=epochs, validation_data=dev, validation_steps=len(dev))
+            self.history = self.model.fit(train,  steps_per_epoch=len(train), epochs=epochs, validation_data=dev, validation_steps=len(dev), callbacks=[self.early_stopping])
         else:
             X_train, y_train = train
             X_dev, y_dev = dev
