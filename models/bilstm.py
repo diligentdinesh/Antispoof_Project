@@ -20,6 +20,8 @@ import pandas as pd
 from sklearn.metrics import roc_curve
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
+from models.ocsoftmax import OCSoftmaxLayer, OCSoftmaxLoss
+
 
 import pennylane as qml
 n_qubits = 4 #Number of qubits should be the same as number of features, max number = 25
@@ -54,6 +56,7 @@ class Mode(Enum):
 #     w_1 = 1 
 #     return - K.mean((w_0 * y_true * tf.math.log(y_pred) + w_1 * (1.0 - y_true) * tf.math.log(1.0 - y_pred)))
 
+
 def Binary_CrossEntropy_Weighted(y_true, y_pred): 
     w_0 = 0.9
     w_1 = 0.1 
@@ -82,7 +85,7 @@ def plot_cm(labels, predictions, p=0.5):
     print('Total Fraudulent Transactions: ', np.sum(cm[1]))
 
 class BiLSTM_Model:
-    def __init__(self, weight_saved_path = "./checkpoints/eltp_lfcc/checkpoint", display=False, learning_rate=0.001, beta_1 = 0.999, mode: Mode="train", fine_tune=False) -> None:
+    def __init__(self, weight_saved_path = "./checkpoints/eltp_lfcc/checkpoint", display=False, learning_rate=0.0001, beta_1 = 0.999, mode: Mode="train", fine_tune=False) -> None:
         self.weight_saved_path = weight_saved_path
         self.display = display
         self.METRICS = [
@@ -118,41 +121,19 @@ class BiLSTM_Model:
             Bidirectional(LSTM(units=64, name="LSTM_2", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
             BatchNormalization(),
             Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_3", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_4", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_5", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_6", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_7", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_8", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_9", return_sequences=True, activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
-            # Bidirectional(LSTM(units=64, name="LSTM_10", activation='tanh', recurrent_activation='sigmoid'), merge_mode='concat'),
-            # BatchNormalization(),
-            # Dropout(0.5),
+            
             Dense(units=512, activation='relu', name='Fully_Connected_1'),
             Dense(units=256, activation='relu', name='Fully_Connected_2'),
             Dense(units=128, activation='relu', name='Fully_Connected_3'),
             Dense(units=64, activation='relu', name='Fully_Connected_4'),
             Dense(units=32, activation='relu', name='Fully_Connected_5'),
-            Dense(n_qubits, activation="linear", name="before_qbit"),
-    #qlayer= tf.keras.layers.Dense(n_qubits, activation="linear", dtype=tf.float32) #Classical
-            qml.qnn.KerasLayer(qnode, weight_shapes, n_qubits, dtype=tf.float32), 
-            Dense(units=1, activation='sigmoid', name='Classification')
+    #         Dense(n_qubits, activation="linear", name="before_qbit"),
+    # #qlayer= tf.keras.layers.Dense(n_qubits, activation="linear", dtype=tf.float32) #Classical
+    #         qml.qnn.KerasLayer(qnode, weight_shapes, n_qubits, dtype=tf.float32), 
+            # OCSoftmaxLayer(feat_dim=256)
+            Dense(units=1, activation='sigmoid',name="Output_layer")
         ])
-        self.model.compile(optimizer=self.adam_optimizer, loss=Binary_CrossEntropy_Weighted, metrics=self.METRICS)
+        self.model.compile(optimizer=self.adam_optimizer, loss=OCSoftmaxLoss(r_real=0.9, r_fake=0.2, alpha=20.0), metrics=self.METRICS)
 
     def calculate_class_weight(self, y_train):
         neg, pos = np.bincount(y_train)
