@@ -30,11 +30,13 @@ X_eval, y_eval = eltp_df_eval[['FEATURE_1', 'FEATURE_2', 'FEATURE_3', 'FEATURE_4
 'LFCC_FEATURE_11', 'LFCC_FEATURE_12', 'LFCC_FEATURE_13', 'LFCC_FEATURE_14', 'LFCC_FEATURE_15',
 'LFCC_FEATURE_16', 'LFCC_FEATURE_17', 'LFCC_FEATURE_18', 'LFCC_FEATURE_19', 'LFCC_FEATURE_20']], eltp_df_eval['target']
 
-model = BiLSTM_Model(weight_saved_path="./checkpoints/aldp_lfcc_500_double_bilstm_2_weighted_binary_cross_entropy/checkpoint",mode="eval")
+model = BiLSTM_Model(weight_saved_path="./checkpoints/aldp_lfcc_500_double_bilstm_2_weighted_binary_cross_entropy_using_Bootstrap_quantum/checkpoint",mode="eval")
 # code from classification of code imbalance
 
 model_results = model.generate_score(X_eval, batch_size=64)
-score_df = pd.DataFrame({'filename': eltp_df_eval['AUDIO_FILE_NAME'], '-': eltp_df_eval['-'], 'KEY': eltp_df_eval['KEY'], 'scores': model_results[:,0]})
+# print(eltp_df_eval.head())
+print(eltp_df_eval.index)
+score_df = pd.DataFrame({'filename': eltp_df_eval['AUDIO_FILE_NAME'], '-': eltp_df_eval['-_x'], 'KEY': eltp_df_eval['KEY_x'], 'scores': model_results[:,0]})
 
-score_df.to_csv('evaluation/scores/cm_dev_bilstm_weighted.txt', header=False, index=False, sep=" ")
+score_df.to_csv('evaluation/scores/cm_dev_bilstm_weighted_quantum_eval.txt', header=False, index=False, sep=" ")
 
