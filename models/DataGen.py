@@ -11,8 +11,8 @@ class CustomDataGen(tf.keras.utils.Sequence):
         self.df = df.copy()
         self.X_col = X_col
         self.y_col = y_col
-        self.positive_df = self.df[self.df[y_col]==1]
-        self.negative_df = self.df[self.df[y_col]==0]
+        self.positive_df = self.df[self.df[y_col]==0]
+        self.negative_df = self.df[self.df[y_col]==1]
         
         self.batch_size = batch_size
         self.negative_batch_size = self.batch_size // 2
