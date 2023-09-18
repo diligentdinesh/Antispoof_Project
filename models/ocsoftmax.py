@@ -35,7 +35,7 @@ class OCSoftmaxLoss(tf.keras.layers.Layer):
         # y_true = tf.cast(y_true, tf.float32)
         # power = ((0.9-0.4 * y_true) - y_pred) * (-1 ** y_true)
         # loss = K.mean(self.softplus(self.alpha * power))
-        scores = tf.where(y_true == 0, self.r_real - y_pred, y_pred - self.r_fake)
+        scores = tf.where(y_true == 1.0, self.r_real - y_pred, y_pred - self.r_fake)
 
         loss = tf.reduce_mean(self.softplus(self.alpha * scores))
         return loss
