@@ -15,6 +15,7 @@ class ASVspoof2019(tf.keras.utils.Sequence):
         genuine_only=False,
         feat_len=750,
         padding="repeat",
+        batch_size=32
     ):
         self.access_type = access_type
         self.path_to_features = path_to_features
@@ -25,6 +26,7 @@ class ASVspoof2019(tf.keras.utils.Sequence):
         self.feature = feature
         self.path_to_protocol = path_to_protocol
         self.padding = padding
+        self.batch_size = batch_size
         protocol = os.path.join(
             self.path_to_protocol, f"ASVspoof2019.{access_type}.cm.{self.part}.trl.txt"
         )
@@ -82,42 +84,51 @@ class ASVspoof2019(tf.keras.utils.Sequence):
         return len(self.all_info)
 
     def __getitem__(self, idx):
-        speaker, filename, _, tag, label = self.all_info[idx]
-        try:
-            with open(
-                os.path.join(self.ptf + "/" + filename + f"{self.feature}.pkl"), "rb"
-            ) as feature_handle:
-                feat_mat = pickle.load(feature_handle)
-        except:
+        feat_mats = []
+        filenames = []
+        tags = []
+        labels = []
+        for speaker, filename, _, tag, label in self.all_info[idx * self.batch_size:(idx + 1) * self.batch_size]:
+            # speaker, filename, _, tag, label = self.all_info[idx]
+            try:
+                with open(
+                    os.path.join(self.ptf + "/" + filename + f"{self.feature}.pkl"), "rb"
+                ) as feature_handle:
+                    feat_mat = pickle.load(feature_handle)
+            except:
 
-            def the_other(train_or_dev):
-                assert train_or_dev in ["train", "dev"]
-                res = "dev" if train_or_dev == "train" else "train"
-                return res
+                def the_other(train_or_dev):
+                    assert train_or_dev in ["train", "dev"]
+                    res = "dev" if train_or_dev == "train" else "train"
+                    return res
 
-            with open(
-                os.path.join(
-                    self.path_to_features,
-                    the_other(self.part) + "/" + filename + f"{self.feature}.pkl",
-                ),
-                "rb",
-            ) as feature_handle:
-                feat_mat = pickle.load(feature_handle)
+                with open(
+                    os.path.join(
+                        self.path_to_features,
+                        the_other(self.part) + "/" + filename + f"{self.feature}.pkl",
+                    ),
+                    "rb",
+                ) as feature_handle:
+                    feat_mat = pickle.load(feature_handle)
 
-        feat_mat = tf.convert_to_tensor(feat_mat, dtype=tf.float32)
-        this_feat_len = feat_mat.shape[1]
-        if this_feat_len > self.feat_len:
-            startp = np.random.randint(this_feat_len - self.feat_len)
-            feat_mat = feat_mat[:, startp : startp + self.feat_len]
-        if this_feat_len < self.feat_len:
-            if self.padding == "zero":
-                feat_mat = self.padding_func(feat_mat, self.feat_len)
-            elif self.padding == "repeat":
-                feat_mat = self.repeat_padding_func(feat_mat, self.feat_len)
-            else:
-                raise ValueError("Padding should be zero or repeat!")
-
-        return feat_mat, filename, self.tag[tag], self.label[label]
+            feat_mat = tf.convert_to_tensor(feat_mat, dtype=tf.float32)
+            this_feat_len = feat_mat.shape[1]
+            if this_feat_len > self.feat_len:
+                startp = np.random.randint(this_feat_len - self.feat_len)
+                feat_mat = feat_mat[:, startp : startp + self.feat_len]
+            if this_feat_len < self.feat_len:
+                if self.padding == "zero":
+                    feat_mat = self.padding_func(feat_mat, self.feat_len)
+                elif self.padding == "repeat":
+                    feat_mat = self.repeat_padding_func(feat_mat, self.feat_len)
+                else:
+                    raise ValueError("Padding should be zero or repeat!")
+            feat_mats.append(feat_mat)
+            filenames.append(filename)
+            tags.append(self.tag[tag])
+            labels.append(self.label[label])
+            # return feat_mat, filename, self.tag[tag], self.label[label]
+        return tf.expand_dims(tf.stack(feat_mats), axis=3), tf.stack(filenames), tf.stack(tags), tf.stack(labels)
 
     def on_epoch_end(self):
         pass
@@ -146,5 +157,6 @@ if __name__ == "__main__":
         feat_len=750,
         padding='repeat',
     )
-    feat, _, _, _ = training_set[29]
+    feat, _, _, labels = training_set[29]
     print("Feature shape", feat.shape)
+    print("label shape: ", labels.shape)
