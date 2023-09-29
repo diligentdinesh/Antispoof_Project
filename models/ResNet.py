@@ -152,16 +152,18 @@ def ResNet18(input_shape=(60, 750, 1), classes=2):
 
     return model
 
-# Create the ResNet-18 model
-model = ResNet18(input_shape=(60, 750, 1), classes=2)
 
-# Print model summary
-model.summary()
-# tf.keras.utils.plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
+if __name__=="__main__":
+    # Create the ResNet-18 model
+    model = ResNet18(input_shape=(60, 750, 1), classes=2)
+
+    # Print model summary
+    model.summary()
+    # tf.keras.utils.plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
 
 
-g1 = tf.random.Generator.from_seed(1)
-print()
-input = g1.normal(shape=[32, 60, 750, 1])
-output = model(input)
-print(output)
+    g1 = tf.random.Generator.from_seed(1)
+    print()
+    input = g1.normal(shape=[32, 60, 750, 1])
+    output = model(input)
+    print(output)
