@@ -33,6 +33,12 @@ class OCSoftmax(tf.keras.layers.Layer):
 
         return loss, output_scores
 
+def ocsoftmaxmodel(enc_dim=2, r_real=0.9, r_fake=0.2, alpha=20.0):
+    input = tf.keras.Input(shape=(enc_dim))
+    labels = tf.keras.Input(shape=(1))
+    loss, output = OCSoftmax(feat_dim=enc_dim, r_real=r_real, r_fake=r_fake, alpha=alpha)(input, labels)
+    return tf.keras.Model(inputs=[input, labels], outputs=[loss, output])
+
 class AMSoftmax(tf.keras.layers.Layer):
     def __init__(self, num_classes, enc_dim, s=20, m=0.9):
         super(AMSoftmax, self).__init__()
@@ -64,21 +70,22 @@ class AMSoftmax(tf.keras.layers.Layer):
 if __name__ == "__main__":
     batch_size = 32
     feats_dim = 256
-    ocsoftmax = OCSoftmax(feats_dim)
+    ocsoftmax = ocsoftmaxmodel(feats_dim)
     # ocsoftmax.train()
     # ocsoftmax_optimzer = torch.optim.SGD(ocsoftmax.parameters(), lr=0.01)
     ocsoftmax_optimzer = tf.keras.optimizers.SGD(learning_rate=0.01)
-    
+    ocsoftmax.summary()
     
     g1 = tf.random.Generator.from_seed(1, alg='philox')
     feats = g1.normal(shape=[batch_size, feats_dim])
     import numpy as np 
     labels = np.random.randint(2, size=(batch_size,1))
-    outputs, score = ocsoftmax(feats, labels)
+    outputs, score = ocsoftmax([feats, tf.convert_to_tensor(labels)])
     print(outputs, score)
 
-    with tf.GradientTape() as tape:
-        lfcc_loss, score = ocsoftmax(feats, labels)
-    gradients = tape.gradient(lfcc_loss, ocsoftmax.trainable_variables)
-    ocsoftmax_optimzer.apply_gradients(zip(gradients, ocsoftmax.trainable_variables))
+
+    # with tf.GradientTape() as tape:
+    #     lfcc_loss, score = ocsoftmax(feats, labels)
+    # gradients = tape.gradient(lfcc_loss, ocsoftmax.trainable_variables)
+    # ocsoftmax_optimzer.apply_gradients(zip(gradients, ocsoftmax.trainable_variables))
 
